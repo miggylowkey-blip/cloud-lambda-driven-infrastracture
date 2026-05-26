@@ -1,0 +1,17 @@
+# Ignore the local Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+
+# Ignore all deep Terraform internal caches and state files
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.backup
+**/.terraform.lock.hcl
+
+# Ignore your private secret variables wherever they are
+**/*.tfvars
+**/*.tfvars.json
+
+# Ignore built deployment zip packages
+**/lambda/dist/

@@ -1,0 +1,62 @@
+name: CI / CD 
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  security-and-lint:
+    name: "1. Security & Linting"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Crucial for Gitleaks to scan commit history
+
+      # 1. Scan for leaked secrets (API Keys, Passwords)
+      - name: Run Gitleaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. Check for AWS misconfigurations (Open ports, unencrypted buckets)
+      - name: Run Trivy Security Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          hide-progress: true
+          format: 'table'
+          exit-code: '1' # Fails the pipeline if severe vulnerabilities are found
+          severity: 'CRITICAL,HIGH'
+
+  terraform-validate:
+    name: "2. Terraform Verification"
+    needs: security-and-lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./terraform # Runs commands inside your terraform folder
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.0 # Matches your workspace environment
+
+      - name: Terraform Init
+        run: terraform init -backend=false # Initialized without needing a live cloud state
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        run: terraform validate
